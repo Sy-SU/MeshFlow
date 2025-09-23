@@ -1,0 +1,26 @@
+data:
+  root: /path/to/meshes
+  split: {train: 0.8, val: 0.1, test: 0.1}
+  knn_k: 24
+  use_local_frame: true
+  save_npz: true
+
+model:
+  cond_encoder: pointnet
+  hidden_dim: 256
+  flow:
+    type: cfm
+    prior_sigma: 1.0
+    time_embed: fourier
+    heads: {v2: true, v3: true}
+
+train:
+  batch_size: 1024
+  lr: 1e-3
+  epochs: 100
+  tau_schedule: linear
+  loss_weights: {v2: 1.0, v3: 1.0}
+
+eval:
+  merge_radius: 1e-3
+  metrics: [vertex_l2, edge_len_err, angle_err, normal_cos, chamfer_l2, fscore_tau]
