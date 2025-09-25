@@ -1,0 +1,27 @@
+# Load order: defaults -> data -> train -> model_* -> eval
+include:
+  - data.yaml
+  - train.yaml
+  - eval.yaml
+
+
+project:
+  name: MeshFlow
+  seed: 3407
+  device: cuda
+
+
+paths:
+  data_root: /root/autodl-fs/ShapeNetCore.v2 # raw meshes
+  npz_tri: outs/tri_dataset.npz # optional preprocessed tri dataset
+  out_root: outs
+  ckpt_dir: ${paths.out_root}/ckpts
+  log_dir: ${paths.out_root}/logs
+  recon_dir: ${paths.out_root}/reconstruct
+
+
+logging:
+  wandb: false
+  tensorboard: true
+  print_every: 50
+  save_every: 2000

@@ -1,0 +1,14 @@
+model:
+  name: flow_v3
+  # inputs: (v1, v2) cond, plus x(t), t → velocity (3) predicting v3 - x
+  cond:
+    type: mlp
+    in_dim: 6
+    hidden: 128
+    depth: 4
+    act: gelu
+  flow:
+    in_dim: 3 + 1 + 128
+    hidden: 256
+    depth: 6
+    act: gelu

@@ -1,0 +1,20 @@
+train:
+  epochs: 20
+  iters_per_epoch: 1000
+  lr: 2.0e-4
+  weight_decay: 1.0e-6
+  grad_clip: 1.0
+  amp: true
+
+
+  # Conditional Flow Matching straight-line supervision
+  cfm:
+    t_min: 0.0
+    t_max: 1.0
+    t_sampling: uniform # {uniform, beta}
+    beta_alpha: 2.0 # used when sampling t ~ Beta(alpha, alpha)
+
+
+scheduler:
+  type: cosine
+  warmup_steps: 2000

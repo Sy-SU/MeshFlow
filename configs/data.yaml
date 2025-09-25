@@ -1,0 +1,21 @@
+data:
+  # choose one of {trimesh, npz}
+  backend: trimesh
+
+
+  # trimesh backend
+  categories: ["chair", "table"] # optional class filtering
+  train_split: train
+  val_split: val
+  test_split: test
+
+
+  # sampling
+  max_meshes: null # limit for quick debug
+  shuffle_tris: true
+  dedup_tol: 1.0e-8 # vertex merging tolerance when reconstructing
+
+
+  # batch composition
+  batch_size: 8192 # samples are (v1), (v1,v2) pairs, not full meshes
+  num_workers: 4

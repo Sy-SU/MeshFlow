@@ -1,44 +1,68 @@
-# MeshFlow
-Flow matching model on mesh
+ MeshFlow
+Triangle-wise Conditional Flow Matching for Mesh Reconstruction.
 
+## Setup
 ```bash
 conda env create -f environment.yml
 conda activate meshflow
-```
+````
+
+## Train
 
 ```bash
-conda env update -f environment.yml --prune
+bash scripts/train.sh
 ```
+
+## Evaluate
+
+```bash
+bash scripts/eval.sh
+```
+
+## Data
+
+* Place ShapeNetCore.v2 under `paths.data_root`.
+* Or provide an `npz` tri dataset with keys `{train,val,test}_{v1,v2,v3}`.
 
 ```txt
 MeshFlow/
-├─ configs/                 # YAML：数据、模型、训练、评估
+├─ configs/
+│ ├─ defaults.yaml
+│ ├─ data.yaml
+│ ├─ model_flow_v2.yaml
+│ ├─ model_flow_v3.yaml
+│ ├─ train.yaml
+│ └─ eval.yaml
 ├─ src/
-│  ├─ datasets/
-│  │  ├─ mesh_dataset.py    # 读mesh→面片→排序→(v1,v2,v3)+局部上下文
-│  │  └─ transforms.py      # 归一化、局部坐标、kNN、法线估计等
-│  ├─ models/
-│  │  ├─ flow_core.py       # CFM核心/向量场/采样器
-│  │  ├─ cond_encoder.py    # 条件编码器(v1)/(v1,v2)+局部patch
-│  │  └─ tri_predictor.py   # 两头：p(v2|v1), p(v3|v1,v2)
-│  ├─ utils/
-│  │  ├─ geometry.py        # 边/角/法线/重建/拓扑检查
-│  │  ├─ knn.py             # kNN/球邻域检索
-│  │  └─ io.py              # obj/ply/npz I/O
-│  ├─ train_flow.py         # 训练脚本（多任务/双头）
-│  ├─ eval_reconstruct.py   # 重建与指标评估
-│  └─ visualize.py          # 可视化：三角形、法线、误差热力
+│ ├─ datasets/
+│ │ ├─ mesh_dataset.py
+│ │ ├─ tri_pairs.py
+│ │ └─ transforms.py
+│ ├─ models/
+│ │ ├─ flow_core.py
+│ │ ├─ cond_encoder.py
+│ │ └─ tri_predictor.py
+│ ├─ utils/
+│ │ ├─ geometry.py
+│ │ ├─ io.py
+│ │ ├─ knn.py
+│ │ ├─ metrics.py
+│ │ ├─ seed.py
+│ │ └─ train_utils.py
+│ ├─ train_flow.py
+│ ├─ eval_reconstruct.py
+│ └─ visualize.py
 ├─ outs/
-│  ├─ logs/                 # tensorboard/文本日志
-│  ├─ ckpts/                # checkpoint：flow_v2, flow_v3
-│  └─ reconstruct/          # 生成的mesh/诊断报告
+│ ├─ logs/
+│ ├─ ckpts/
+│ └─ reconstruct/
 ├─ docs/
-│  ├─ report_zh.md
-│  └─ assets/
+│ ├─ report_zh.md
+│ └─ assets/
 ├─ scripts/
-│  ├─ prepare_data.sh
-│  ├─ train.sh
-│  └─ eval.sh
+│ ├─ prepare_data.sh
+│ ├─ train.sh
+│ └─ eval.sh
 ├─ README.md
-└─ requirements.txt
+└─ environment.yml
 ```

@@ -1,0 +1,8 @@
+eval:
+  t_steps: 32
+  sampler: euler
+  metrics:
+  point_l2: true
+  traj_l2: false
+  chamfer: true
+  dump_pred_mesh: true

@@ -1,21 +1,15 @@
 name: meshflow
-channels:
-  - pytorch
-  - nvidia
-  - conda-forge
-  - defaults
+channels: [pytorch, conda-forge, defaults]
 dependencies:
   - python=3.10
+  - pytorch
+  - pytorch-cuda=12.1  # adjust to your driver
   - numpy
   - scipy
-  - scikit-learn
-  - pytorch
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=12.1
+  - pyyaml
+  - tqdm
+  - trimesh
+  - open3d
   - pip
   - pip:
-    - trimesh
-    - plyfile
-    - tqdm
-    - open3d
+      - wandb
