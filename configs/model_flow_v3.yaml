@@ -8,7 +8,7 @@ model:
     depth: 4
     act: gelu
   flow:
-    in_dim: 3 + 1 + 128
+    in_dim: 132
     hidden: 256
     depth: 6
     act: gelu

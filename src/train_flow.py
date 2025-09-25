@@ -1,11 +1,45 @@
 # src/train_flow.py
 import os, argparse, yaml, torch
+from copy import deepcopy
 from torch.utils.data import DataLoader
 from datasets.mesh_dataset import TrianglePairs
 from datasets.tri_pairs import TriPairsV2, TriPairsV3
 from models.tri_predictor import TriFlow
 from utils.train_utils import get_autocast, grad_clip_
 
+def deep_update(base, extra):
+    """Recursively update dict 'base' with 'extra'."""
+    for k, v in extra.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            deep_update(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+def load_configs(cli_config, model_config):
+    """
+    Load and deep-merge configs in this order:
+      1) configs/defaults.yaml  (如果不存在，就跳过)
+      2) configs/data.yaml
+      3) configs/train.yaml
+      4) cli_config              (e.g., configs/defaults.yaml 或你传的别的)
+      5) model_config            (e.g., configs/model_flow_v2.yaml / v3)
+    Later files override earlier ones (深度覆盖).
+    """
+    order = [
+        "configs/defaults.yaml",
+        "configs/data.yaml",
+        "configs/train.yaml",
+        cli_config,
+        model_config,
+    ]
+    cfg = {}
+    for p in order:
+        if p and os.path.exists(p):
+            with open(p, "r") as f:
+                part = yaml.safe_load(f) or {}
+            deep_update(cfg, part)
+    return cfg
 
 def make_model(cfg):
     cond_in = cfg['model']['cond']['in_dim']
@@ -27,23 +61,35 @@ def main():
     ap.add_argument('--head', type=str, choices=['v2','v3'], required=True)
     args = ap.parse_args()
 
-    cfg = {}
-    for p in [args.config, 'configs/train.yaml', args.model]:
-        with open(p, 'r') as f:
-            cfg.update(yaml.safe_load(f))
+    cfg = load_configs(args.config, args.model)
+    print("完成配置加载")
 
     torch.manual_seed(cfg['project']['seed'])
     device = cfg['project']['device']
+    print("完成随机种子设置")
 
-    base = TrianglePairs(cfg['paths']['data_root'], split='train', backend=cfg['data']['backend'], max_meshes=cfg['data']['max_meshes'])
+    base = TrianglePairs(
+        cfg['paths']['data_root'],
+        split='train',
+        backend=cfg['data']['backend'],
+        max_meshes=cfg['data']['max_meshes'],
+        heads=('v2',) if args.head == 'v2' else ('v3',),
+        debug=True,                # ✅ 打开可视化与日志
+        debug_limit_tris=None,     # ✅ 先加载 5k 个三角形冒烟
+        debug_log_every=1000       # 每 1000 个三角形打印一次内存/计数
+    )
     if args.head == 'v2':
         ds = TriPairsV2(base)
     else:
         ds = TriPairsV3(base)
     dl = DataLoader(ds, batch_size=cfg['data']['batch_size'], shuffle=True, num_workers=cfg['data']['num_workers'], drop_last=True)
 
+    print("完成数据集加载")
+
     model = make_model(cfg).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg['train']['lr'], weight_decay=cfg['train']['weight_decay'])
+
+    print("完成模型加载")
 
     scaler = torch.cuda.amp.GradScaler(enabled=cfg['train']['amp'])
 

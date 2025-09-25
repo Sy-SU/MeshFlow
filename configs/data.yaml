@@ -17,5 +17,5 @@ data:
 
 
   # batch composition
-  batch_size: 8192 # samples are (v1), (v1,v2) pairs, not full meshes
+  batch_size: 1024 # samples are (v1), (v1,v2) pairs, not full meshes
   num_workers: 4
