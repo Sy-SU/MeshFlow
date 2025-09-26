@@ -6,6 +6,7 @@ from datasets.mesh_dataset import TrianglePairs
 from datasets.tri_pairs import TriPairsV2, TriPairsV3
 from models.tri_predictor import TriFlow
 from utils.train_utils import get_autocast, grad_clip_
+from tqdm import tqdm
 
 def deep_update(base, extra):
     """Recursively update dict 'base' with 'extra'."""
@@ -64,6 +65,8 @@ def main():
     cfg = load_configs(args.config, args.model)
     print("完成配置加载")
 
+    print(f"ckpts 保存路径：{cfg['paths']['ckpt_dir']}")
+
     torch.manual_seed(cfg['project']['seed'])
     device = cfg['project']['device']
     print("完成随机种子设置")
@@ -95,7 +98,8 @@ def main():
 
     global_step = 0
     for epoch in range(cfg['train']['epochs']):
-        for it, batch in enumerate(dl):
+        dl_tqdm = tqdm(dl, desc=f"Epoch {epoch+1}/{cfg['train']['epochs']}", ncols=100)
+        for it, batch in enumerate(dl_tqdm):
             if args.head == 'v2':
                 v1, v2 = [x.to(device) for x in batch]
                 x0, x1 = v1, v2
@@ -117,17 +121,15 @@ def main():
             opt.zero_grad(set_to_none=True)
 
             global_step += 1
-            if global_step % cfg['logging']['print_every'] == 0:
-                print(f"[e{epoch} i{it}] loss={loss.item():.6f}")
+            # 在进度条上动态显示 loss
+            dl_tqdm.set_postfix({"loss": f"{loss.item():.6f}"})
 
-            if global_step % cfg['logging']['save_every'] == 0:
-                os.makedirs(cfg['paths']['ckpt_dir'], exist_ok=True)
-                head = args.head
-                torch.save({'model': model.state_dict(), 'cfg': cfg}, os.path.join(cfg['paths']['ckpt_dir'], f'{cfg["model"]["name"]}_{head}_step{global_step}.pt'))
-
-        # epoch end save
+        # 每个 epoch 结束时保存一次 checkpoint
         os.makedirs(cfg['paths']['ckpt_dir'], exist_ok=True)
-        torch.save({'model': model.state_dict(), 'cfg': cfg}, os.path.join(cfg['paths']['ckpt_dir'], f'{cfg["model"]["name"]}_{args.head}_e{epoch}.pt'))
+        torch.save(
+            {'model': model.state_dict(), 'cfg': cfg},
+            os.path.join(cfg['paths']['ckpt_dir'], f'{cfg["model"]["name"]}_{args.head}_e{epoch}.pt')
+        )
 
 if __name__ == '__main__':
     main()

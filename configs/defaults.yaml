@@ -15,9 +15,9 @@ paths:
   data_root: /root/autodl-fs/ShapeNetCore.v2.demo # raw meshes
   npz_tri: outs/tri_dataset.npz # optional preprocessed tri dataset
   out_root: outs
-  ckpt_dir: ${paths.out_root}/ckpts
-  log_dir: ${paths.out_root}/logs
-  recon_dir: ${paths.out_root}/reconstruct
+  ckpt_dir: outs/ckpts
+  log_dir: outs/logs
+  recon_dir: outs/reconstruct
 
 
 logging:
