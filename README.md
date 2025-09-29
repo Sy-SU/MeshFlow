@@ -3,7 +3,7 @@ Triangle-wise Conditional Flow Matching for Mesh Reconstruction.
 
 ## Setup
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yaml
 conda activate meshflow
 ````
 
