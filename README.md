@@ -9,8 +9,7 @@ conda activate meshflow
 
 ## 数据集处理
 ```bash
-chmod +x scripts/prepare_data.sh
-./scripts/prepare_data.sh
+python src/datasets/prepare.py 
 ```
 
 ## 搜索超参数
