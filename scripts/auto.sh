@@ -11,39 +11,63 @@ DATE=$(date +%Y%m%d_%H%M%S)
 
 # ====== 搜索空间 ======
 LR_LIST=("1e-3" "7e-4" "5e-4" "2e-4" "1e-4")
-BATCH_LIST=(4)
-WARMUP_LIST=(0 1 2 3 5 7 10)
+WARMUP_LIST=(5)  # warmup 搜索空间
+DIRW_LIST=("0.0005" "0.0001" "0.005" "0.001" "0.05" "0.01")
+BATCH=4
 
 # ====== 保存结果 ======
-RESULT_FILE="outs/${RUN_PREFIX}_${DATE}/tune_results.txt"
-mkdir -p "$(dirname "${RESULT_FILE}")"
+RESULT_DIR="outs/${RUN_PREFIX}_${DATE}"
+RESULT_FILE="${RESULT_DIR}/tune_results.txt"
+mkdir -p "${RESULT_DIR}"
 echo "[AutoTune] 保存结果到 ${RESULT_FILE}"
-echo "run_name, lr, batch, warmup, best_val" > "${RESULT_FILE}"
+echo "run_name, lr, batch, warmup, dir_weight, best_val, recon_error" > "${RESULT_FILE}"
 
 EXP_ID=0
 for LR in "${LR_LIST[@]}"; do
-  for BATCH in "${BATCH_LIST[@]}"; do
+  for DW in "${DIRW_LIST[@]}"; do
     for WARMUP in "${WARMUP_LIST[@]}"; do
       EXP_ID=$((EXP_ID+1))
-      RUN_NAME="${RUN_PREFIX}_${DATE}_exp${EXP_ID}"
+
+      lr_tag="${LR//./p}"
+      dw_tag="${DW//./p}"
+      RUN_NAME="${RUN_PREFIX}_${DATE}_exp${EXP_ID}_lr${lr_tag}_bs${BATCH}_wu${WARMUP}_dw${dw_tag}"
 
       echo
-      echo "====== 运行实验 ${EXP_ID}: lr=${LR}, batch=${BATCH}, warmup=${WARMUP} ======"
+      echo "====== 运行实验 ${EXP_ID}: lr=${LR}, batch=${BATCH}, warmup=${WARMUP}, dir_weight=${DW} ======"
 
-      # 调用已有 train.sh
-      LR=${LR} BATCH_SIZE=${BATCH} WARMUP_EPOCHS=${WARMUP} ./scripts/train.sh "${RUN_NAME}"
+      # 通过 run.sh 一键执行（训练 + 重建）
+      LR="${LR}" BATCH_SIZE="${BATCH}" WARMUP_EPOCHS="${WARMUP}" DIR_WEIGHT="${DW}" \
+        bash scripts/run.sh "${RUN_NAME}"
 
-      # 读取 val 最优指标
+      # 从训练阶段保存的 early_stop.json 或 ckpt_best.pt 里读 best_val
       CKPT_DIR="outs/${RUN_NAME}/ckpts"
       BEST_JSON="${CKPT_DIR}/early_stop.json"
       if [[ -f "${BEST_JSON}" ]]; then
-        BEST_VAL=$(jq -r '.best_val' "${BEST_JSON}")
+        BEST_VAL=$(python - <<PY
+import json
+with open("${BEST_JSON}", "r", encoding="utf-8") as f:
+    print(json.load(f).get("best_val", "nan"))
+PY
+)
       else
-        # 如果没早停，就看 ckpt_best.pt 里面的 best_metric
-        BEST_VAL=$(python -c "import torch;print(torch.load('${CKPT_DIR}/ckpt_best.pt')['best_metric'])")
+        BEST_VAL=$(python - <<PY
+import torch
+ckpt = torch.load("${CKPT_DIR}/ckpt_best.pt", map_location="cpu")
+print(ckpt.get("best_metric", float("nan")))
+PY
+)
       fi
 
-      echo "${RUN_NAME}, ${LR}, ${BATCH}, ${WARMUP}, ${BEST_VAL}" | tee -a "${RESULT_FILE}"
+      # 从重建脚本保存的结果文件里取 recon_error（假设 reconstruct.sh 会保存结果）
+      RECON_FILE="outs/${RUN_NAME}/eval/reconstruct_test.txt"
+      if [[ -f "${RECON_FILE}" ]]; then
+        RECON_ERROR=$(tail -n 1 "${RECON_FILE}")
+      else
+        RECON_ERROR="nan"
+      fi
+
+      echo "${RUN_NAME}, ${LR}, ${BATCH}, ${WARMUP}, ${DW}, ${BEST_VAL}, ${RECON_ERROR}" \
+        | tee -a "${RESULT_FILE}"
     done
   done
 done

@@ -134,20 +134,41 @@ def edges_from_faces(
 
 # ------------------ 训练用损失（Masked MSE + 可选方向项） ------------------
 def masked_mse(a: torch.Tensor, b: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
-    diff2 = (a - b) ** 2  # [B,N,3]
-    err = diff2.sum(dim=-1)  # [B,N]
+    """
+    MSE with mask support.
+    a, b: [B, N, 3]
+    mask: [B, N] or None
+    """
+    diff2 = (a - b) ** 2         # [B, N, 3]
+    err = diff2.sum(dim=-1)      # [B, N]
+
     if mask is not None:
-        err = err[mask]
+        err = err[mask]          # flatten only valid entries
+
+    if err.numel() == 0:         # avoid nan when no valid entries
+        return torch.tensor(0.0, device=a.device, dtype=a.dtype, requires_grad=a.requires_grad)
+
     return err.mean()
+
 
 def directional_loss(dx_pred: torch.Tensor, dx_gt: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
     eps = 1e-8
-    dot = (dx_pred * dx_gt).sum(dim=-1)            # [B,N]
+    dot = (dx_pred * dx_gt).sum(dim=-1)  # [B,N]
     denom = dx_pred.norm(dim=-1) * dx_gt.norm(dim=-1) + eps
-    loss = 1.0 - (dot / denom)
+
+    cos_sim = dot / denom  # [B,N]
+    cos_sim = torch.clamp(cos_sim, -1.0, 1.0)  # 防止数值超范围
+
+    loss = 1.0 - cos_sim  # [B,N]
+
     if mask is not None:
         loss = loss[mask]
+
+    if loss.numel() == 0:  # 防止 mean 空 tensor
+        return torch.tensor(0.0, device=dx_pred.device, dtype=dx_pred.dtype)
+
     return loss.mean()
+
 
 
 # ------------------ 验证：重建 x2_pred 并计算 mean(||x2_pred - x2_gt||) ------------------
@@ -156,7 +177,7 @@ def reconstruct_batch(
     flow: FlowFieldWithTokens,
     tokenizer: ShapeTokenizer,
     x1: torch.Tensor,
-    num_steps: int = 20
+    num_steps: int = 100
 ) -> torch.Tensor:
     """
     Heun 多步从 x1 -> x2_pred；仅依赖 x1
@@ -261,8 +282,11 @@ def train_one_epoch(
 
             # 损失（masked MSE + 可选方向项）
             loss = masked_mse(dx_pred, dx_gt, mask)
+            mse_loss = loss
+            dir_loss = None
             if args.dir_weight > 0.0:
                 loss = loss + args.dir_weight * directional_loss(dx_pred, dx_gt, mask)
+                dir_loss = directional_loss(dx_pred, dx_gt, mask)
 
         scaler.scale(loss).backward()
         if args.grad_clip > 0:
@@ -280,7 +304,7 @@ def train_one_epoch(
 
         cur_lr = _get_lr(optimizer)
         if cur_lr is not None:
-            pbar.set_postfix(loss=f"{running_loss/step_count:.6f}", lr=f"{cur_lr:.2e}")
+            pbar.set_postfix(loss=f"{running_loss/step_count:.6f}", mse_loss = f"{mse_loss:.6f}", dir_loss = f"{dir_loss:.6f}", lr=f"{cur_lr:.2e}")
         else:
             pbar.set_postfix(loss=f"{running_loss/step_count:.6f}")
 
@@ -335,13 +359,13 @@ def build_argparser():
     ap.add_argument("--epochs", type=int, default=50)
     ap.add_argument("--lr", type=float, default=2e-4)
     ap.add_argument("--weight_decay", type=float, default=1e-4)
-    ap.add_argument("--train_dt", type=float, default=0.05, help="Heun 单步的 Δt（训练目标）")
+    ap.add_argument("--train_dt", type=float, default=0.01, help="Heun 单步的 Δt（训练目标）")
     ap.add_argument("--dir_weight", type=float, default=0.1, help="方向项权重（1 - cos），设 0 关闭")
     ap.add_argument("--grad_clip", type=float, default=1.0)
     ap.add_argument("--amp", action="store_true", help="启用混合精度训练")
 
     # 验证
-    ap.add_argument("--val_steps", type=int, default=20, help="重建时 Heun 积分步数（验证）")
+    ap.add_argument("--val_steps", type=int, default=100, help="重建时 Heun 积分步数（验证）")
 
     # 设备 & 日志
     ap.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")

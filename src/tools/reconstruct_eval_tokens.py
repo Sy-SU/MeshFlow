@@ -190,16 +190,16 @@ def evaluate_path(
         scores = []
         for f in npz_files:
             m = eval_one(f)
-            print(f"[{os.path.basename(f)}] mean ||x2_pred - x2_gt|| = {m:.6f}")
+            print(f"[{os.path.basename(f)}] mean per face ||x2_pred - x2_gt|| = {m:.6f}")
             scores.append(m)
         overall = float(np.mean(scores)) if scores else float("nan")
-        print(f"\n[OVERALL] mean over {len(scores)} files = {overall:.6f}")
+        print(f"\n[OVERALL] mean per face over {len(scores)} files = {overall:.6f}")
         return overall
     else:
         if not os.path.isfile(path):
             raise FileNotFoundError(path)
         m = eval_one(path)
-        print(f"[{os.path.basename(path)}] mean ||x2_pred - x2_gt|| = {m:.6f}")
+        print(f"[{os.path.basename(path)}] mean per face ||x2_pred - x2_gt|| = {m:.6f}")
         return m
 
 

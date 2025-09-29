@@ -9,14 +9,14 @@ fi
 RUN_NAME="$1"
 
 # 可以通过环境变量覆盖超参数
-: "${EPOCHS:=9999}"
+: "${EPOCHS:=200}"
 : "${BATCH_SIZE:=4}"
 : "${LR:=1e-3}"
 : "${D_MODEL:=256}"
 : "${NHEAD:=8}"
 : "${TOK_DEPTH:=2}"
 : "${FLOW_LAYERS:=4}"
-: "${HEUN_STEPS:=20}"
+: "${HEUN_STEPS:=100}"
 : "${MAX_EDGES:=4096}"
 
 export EPOCHS BATCH_SIZE LR D_MODEL NHEAD TOK_DEPTH FLOW_LAYERS HEUN_STEPS MAX_EDGES
