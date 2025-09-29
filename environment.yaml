@@ -10,7 +10,7 @@ dependencies:
   - scikit-learn
   - scipy
   - pytorch
-  - pytorch-cuda=12.1
+  - pytorch-cuda=12.4
   - torchaudio
   - torchvision
   - matplotlib
